@@ -251,13 +251,6 @@ exports.getOrders = async (req, res) => {
             query.status = req.query.status;
         }
 
-        if (req.query.search) {
-            query.$or = [
-                {orderNumber: {$regex: req.query.search, $options: 'i'}},
-                {'shippingAddress.email': {$regex: req.query.search, $options: 'i'}}
-            ];
-        }
-
         const orders = await Order.find(query)
             .sort('-createdAt')
             .skip(skip)

@@ -118,165 +118,24 @@ const shippingAddressSchema = new mongoose.Schema({
 }, {_id: false});
 
 const orderSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    orderNumber: {
-        type: String,
-        required: true,
-        unique: true,
-        index: true
-    },
-    items: [orderItemSchema],
-    subtotal: {
-        type: Number,
-        required: false
-    },
-    tax: {
-        type: Number,
-        default: 0
-    },
-    shipping: {
-        type: Number,
-        default: 0
-    },
-    total: {
-        type: Number,
-        required: true
-    },
-    payment: {
-        type: paymentDetailsSchema,
-        required: false
-    },
-    shippingAddress: {
-        type: shippingAddressSchema,
-        required: true
-    },
-    status: {
-        type: String,
-        enum: ['created', 'attempted', 'paid'],
-        default: 'created'
-    },
-    shippingStatus: {
-        type: String,
-        enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'failed'],
-        default: 'pending'
-    },
-    notes: [{
-        text: String,
-        createdAt: {
-            type: Date,
-            default: Date.now
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        amount: { type: Number, required: true },
+        currency: { type: String, default: "INR" },
+        receipt: { type: String },
+        razorpayOrderId: { type: String, required: true },
+        razorpayPaymentId: { type: String },
+        razorpaySignature: { type: String },
+        items: [orderItemSchema],
+        shippingAddress: {
+            type: shippingAddressSchema,
         },
-        createdBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        }
-    }],
-    trackingNumber: {
-        type: String
+        status: {
+            type: String,
+            enum: ["created", "paid", "attempted"],
+            default: "created",
+        },
     },
-    trackingCompany: {
-        type: String
-    },
-    trackingUrl: {
-        type: String
-    },
-    cancelledAt: {
-        type: Date
-    },
-    cancelledBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    cancelledReason: {
-        type: String
-    },
-    deliveredAt: {
-        type: Date
-    },
-    isGift: {
-        type: Boolean,
-        default: false
-    },
-    giftMessage: {
-        type: String
-    },
-    metadata: {
-        type: mongoose.Schema.Types.Mixed,
-        default: {}
-    }
-}, {
-    timestamps: true,
-    toJSON: {virtuals: true},
-    toObject: {virtuals: true}
-});
-
-orderSchema.pre('save', async function (next) {
-    if (this.isNew) {
-        const count = await this.constructor.countDocuments();
-        this.orderNumber = `ORD-${Date.now()}-${count + 1}`;
-    }
-    next();
-});
-
-orderSchema.index({userId: 1, status: 1});
-orderSchema.index({'payment.razorpayOrderId': 1});
-orderSchema.index({'payment.razorpayPaymentId': 1});
-orderSchema.index({createdAt: -1});
-
-orderSchema.virtual('formattedDate').get(function () {
-    return this.createdAt.toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-});
-
-orderSchema.virtual('statusDisplay').get(function () {
-    const statusMap = {
-        'pending': 'Pending',
-        'processing': 'Processing',
-        'shipped': 'Shipped',
-        'delivered': 'Delivered',
-        'cancelled': 'Cancelled',
-        'refunded': 'Refunded',
-        'failed': 'Failed'
-    };
-    return statusMap[this.status] || this.status;
-});
-
-orderSchema.statics.findByRazorpayOrderId = function (razorpayOrderId) {
-    return this.findOne({'payment.razorpayOrderId': razorpayOrderId});
-};
-
-orderSchema.methods.updateStatus = async function (newStatus, userId = null) {
-    const allowedStatuses = ['processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
-
-    if (allowedStatuses.includes(newStatus)) {
-        this.status = newStatus;
-
-        if (newStatus === 'cancelled') {
-            this.cancelledAt = new Date();
-            this.cancelledBy = userId;
-        } else if (newStatus === 'delivered') {
-            this.deliveredAt = new Date();
-        }
-
-        this.notes.push({
-            text: `Order status changed to ${newStatus}`,
-            createdBy: userId
-        });
-
-        await this.save();
-        return this;
-    }
-
-    throw new Error('Invalid status update');
-};
+    { timestamps: true }
+);
 
 module.exports = mongoose.model('Order', orderSchema);

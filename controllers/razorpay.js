@@ -9,27 +9,21 @@ const razorpay = new Razorpay({
 
 exports.createOrder = async (req, res) => {
     try {
-        const {amount, currency, items} = req.body; // amount in INR paisa (100 = ₹1)
         const options = {
-            amount: amount, // convert to paisa
-            currency: currency || "INR",
-            receipt: "order_rcptid_" + Date.now(),
+            amount: req.body.amount * 100,
+            currency: "INR",
+            receipt: "receipt_" + Date.now(),
         };
 
         const razorpayOrder = await razorpay.orders.create(options);
         const order = new Order({
-            id: razorpayOrder.id,
-            amount: razorpayOrder.amount,
-            amount_due: razorpayOrder.amount_due,
-            amount_paid: razorpayOrder.amount_paid || 0,
-            attempts: razorpayOrder.attempts || 0,
-            created_at: razorpayOrder.created_at,
-            currency: razorpayOrder.currency,
-            entity: razorpayOrder.entity,
-            receipt: razorpayOrder.receipt,
-            status: razorpayOrder.status,
-            items: items,
             userId: req.user._id,
+            amount: req.body.amount,
+            currency: razorpayOrder.currency,
+            receipt: razorpayOrder.receipt,
+            razorpayOrderId: razorpayOrder.id,
+            status: "created",
+            items: req.body.items,
             shippingAddress: {
                 name: "John Doe",
                 phone: "9876543210",
@@ -39,25 +33,11 @@ exports.createOrder = async (req, res) => {
                 postalCode: "313001",
                 country: "India",
             },
-            // orderStatus: 'pending',
-            /*payment: {
-                status: 'created',
-                amount: razorpayOrder.amount,
-                currency: razorpayOrder.currency
-            }*/
         });
-
-        const savedOrder = await order.save();
-
-        res.status(201).json({
-            success: true,
-            order: razorpayOrder,
-            razorpayOrderId: razorpayOrder.id
-        });
+        order.save();
         res.json(razorpayOrder);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({error: "Something went wrong"});
+    } catch (error) {
+        res.status(500).send(error);
     }
 };
 
@@ -72,6 +52,16 @@ exports.verifyPayment = async (req, res) => {
             .digest("hex");
 
         if (razorpay_signature === expectedSign) {
+            await Order.findOneAndUpdate(
+                { razorpayOrderId: razorpay_order_id },
+                {
+                    $set: {
+                        razorpayPaymentId: razorpay_payment_id,
+                        razorpaySignature: razorpay_signature,
+                        status: "paid",
+                    },
+                }
+            );
             return res.json({success: true, message: "Payment verified successfully"});
         } else {
             return res.status(400).json({success: false, message: "Invalid signature"});

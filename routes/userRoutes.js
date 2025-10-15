@@ -3,6 +3,7 @@ const router = express.Router();
 const {protect} = require('../middleware/authMiddleware');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 router.get('/profile', protect, async (req, res) => {
     try {
@@ -92,6 +93,161 @@ router.put('/change-password', protect, async (req, res) => {
             message: 'Server error while updating password',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    }
+});
+
+router.get('/addresses', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('addresses');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user.addresses || []);
+    } catch (error) {
+        console.error('Error fetching addresses:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+router.post('/addresses', protect, async (req, res) => {
+    try {
+        const { fullName, phone, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = req.body;
+        
+        const newAddress = {
+            _id: new mongoose.Types.ObjectId(),
+            fullName,
+            phone,
+            addressLine1,
+            addressLine2: addressLine2 || '',
+            city,
+            state,
+            postalCode,
+            country,
+            isDefault: !!isDefault
+        };
+
+        if (isDefault) {
+            await User.updateOne(
+                { _id: req.user.id },
+                { $set: { 'addresses.$[].isDefault': false } }
+            );
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { 
+                $push: { 
+                    addresses: newAddress 
+                } 
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const addedAddress = user.addresses.id(newAddress._id);
+        res.status(201).json(addedAddress);
+    } catch (error) {
+        console.error('Error adding address:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.put('/addresses/:addressId', protect, async (req, res) => {
+    try {
+        const { addressId } = req.params;
+        const { fullName, phone, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = req.body;
+
+        const update = {};
+        const addressFields = ['fullName', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country'];
+        
+        const addressUpdate = {};
+        addressFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                addressUpdate[`addresses.$.${field}`] = req.body[field];
+            }
+        });
+
+        if (isDefault === true) {
+            await User.updateOne(
+                { _id: req.user.id },
+                { $set: { 'addresses.$[].isDefault': false } }
+            );
+            
+            addressUpdate['addresses.$.isDefault'] = true;
+        } else if (isDefault === false) {
+            addressUpdate['addresses.$.isDefault'] = false;
+        }
+
+        const user = await User.findOneAndUpdate(
+            { _id: req.user.id, 'addresses._id': addressId },
+            { $set: addressUpdate },
+            { new: true, runValidators: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'Address not found' });
+        }
+
+        const updatedAddress = user.addresses.id(addressId);
+        res.json(updatedAddress);
+    } catch (error) {
+        console.error('Error updating address:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.delete('/addresses/:addressId', protect, async (req, res) => {
+    try {
+        const { addressId } = req.params;
+        
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { $pull: { addresses: { _id: addressId } } },
+            { new: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const addressExists = user.addresses.some(addr => addr._id.toString() === addressId);
+        if (addressExists) {
+            return res.status(404).json({ message: 'Address not found' });
+        }
+
+        res.json({ message: 'Address deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting address:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+router.put('/addresses/:addressId/set-default', protect, async (req, res) => {
+    try {
+        const { addressId } = req.params;
+        
+        await User.updateOne(
+            { _id: req.user.id },
+            { $set: { 'addresses.$[].isDefault': false } }
+        );
+        
+        const user = await User.findOneAndUpdate(
+            { _id: req.user.id, 'addresses._id': addressId },
+            { $set: { 'addresses.$.isDefault': true } },
+            { new: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'Address not found' });
+        }
+
+        res.json({ message: 'Default address updated successfully' });
+    } catch (error) {
+        console.error('Error setting default address:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
