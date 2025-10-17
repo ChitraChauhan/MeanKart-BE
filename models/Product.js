@@ -1,13 +1,12 @@
 const mongoose = require('mongoose');
 
 const specificationsSchema = new mongoose.Schema({
-        brand: {type: String},
-        model: {type: String},
-        color: {type: String},
-        size: {type: String},
-        weight: {type: Number},
-    },
-);
+    brand: { type: String },
+    model: { type: String },
+    color: { type: String },
+    size: { type: String },
+    weight: { type: Number },
+});
 
 const productSchema = new mongoose.Schema({
     name: {
@@ -25,7 +24,8 @@ const productSchema = new mongoose.Schema({
         min: 0
     },
     category: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
         required: true
     },
     stock: {
@@ -38,6 +38,14 @@ const productSchema = new mongoose.Schema({
         type: String,
     }],
     specifications: specificationsSchema,
-}, {timestamps: true});
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+}, { timestamps: true });
+
+// Index for better query performance
+productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

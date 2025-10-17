@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const Category = require('../models/Category');
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -32,14 +33,26 @@ exports.getProducts = async (req, res) => {
         const pageSize = 12;
         const page = Number(req.query.page) || 1;
         const keyword = req.query.keyword
-            ? {name: {$regex: req.query.keyword, $options: 'i'}}
+            ? {
+                $or: [
+                    { name: { $regex: req.query.keyword, $options: 'i' } },
+                    { description: { $regex: req.query.keyword, $options: 'i' } }
+                ]
+            }
             : {};
 
-        const count = await Product.countDocuments({...keyword});
-        const products = await Product.find({...keyword})
+        // Add category filter if provided
+        const category = req.query.category ? { category: req.query.category } : {};
+        
+        // Combine filters
+        const filter = { ...keyword, ...category, isActive: true };
+
+        const count = await Product.countDocuments(filter);
+        const products = await Product.find(filter)
+            .populate('category', 'name slug')
             .limit(pageSize)
             .skip(pageSize * (page - 1))
-            .sort({createdAt: -1});
+            .sort({ createdAt: -1 });
 
         res.json({
             products,
@@ -48,7 +61,21 @@ exports.getProducts = async (req, res) => {
             total: count
         });
     } catch (error) {
-        res.status(500).json({message: 'Server Error'});
+        console.error('Error fetching products:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.getProductCategories = async (req, res) => {
+    try {
+        const categories = await Category.find({ isActive: true })
+            .select('name slug')
+            .sort({ name: 1 });
+        
+        res.json(categories);
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
@@ -139,8 +166,6 @@ exports.updateProduct = async (req, res) => {
                 imageUrls.push(img);
             }
         }
-        console.log('imageUrls aft', imageUrls)
-
         product.name = name || product.name;
         product.description = description || product.description;
         product.price = price || product.price;

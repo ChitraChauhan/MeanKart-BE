@@ -16,7 +16,6 @@ exports.createOrder = async (req, res) => {
         };
 
         const razorpayOrder = await razorpay.orders.create(options);
-        console.log('req.user', req.user)
         const order = new Order({
             userId: req.user._id,
             amount: req.body.amount,
