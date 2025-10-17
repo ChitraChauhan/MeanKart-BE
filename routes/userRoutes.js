@@ -111,13 +111,13 @@ router.get('/addresses', protect, async (req, res) => {
 
 router.post('/addresses', protect, async (req, res) => {
     try {
-        const { fullName, phone, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = req.body;
+        const { name, phone, address, addressLine2, city, state, postalCode, country, isDefault } = req.body;
         
         const newAddress = {
             _id: new mongoose.Types.ObjectId(),
-            fullName,
+            name,
             phone,
-            addressLine1,
+            address,
             addressLine2: addressLine2 || '',
             city,
             state,
@@ -158,10 +158,10 @@ router.post('/addresses', protect, async (req, res) => {
 router.put('/addresses/:addressId', protect, async (req, res) => {
     try {
         const { addressId } = req.params;
-        const { fullName, phone, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = req.body;
+        const { name, phone, address, addressLine2, city, state, postalCode, country, isDefault } = req.body;
 
         const update = {};
-        const addressFields = ['fullName', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country'];
+        const addressFields = ['name', 'phone', 'address', 'addressLine2', 'city', 'state', 'postalCode', 'country'];
         
         const addressUpdate = {};
         addressFields.forEach(field => {

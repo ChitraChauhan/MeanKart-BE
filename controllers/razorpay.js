@@ -16,6 +16,7 @@ exports.createOrder = async (req, res) => {
         };
 
         const razorpayOrder = await razorpay.orders.create(options);
+        console.log('req.user', req.user)
         const order = new Order({
             userId: req.user._id,
             amount: req.body.amount,
@@ -24,7 +25,7 @@ exports.createOrder = async (req, res) => {
             razorpayOrderId: razorpayOrder.id,
             status: "created",
             items: req.body.items,
-            shippingAddress: {
+            shippingAddress: req.user.addresses.find(a => a.isDefault) || {
                 name: "John Doe",
                 phone: "9876543210",
                 address: "123 MG Road",
@@ -32,7 +33,7 @@ exports.createOrder = async (req, res) => {
                 state: "Rajasthan",
                 postalCode: "313001",
                 country: "India",
-            },
+            }
         });
         order.save();
         res.json(razorpayOrder);

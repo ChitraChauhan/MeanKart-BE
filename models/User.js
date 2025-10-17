@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const addressSchema = new mongoose.Schema({
-    fullName: {
+    name: {
         type: String,
         required: [true, 'Full name is required'],
         trim: true
@@ -12,7 +12,7 @@ const addressSchema = new mongoose.Schema({
         required: [true, 'Phone number is required'],
         match: [/^[0-9]{10,15}$/, 'Please enter a valid phone number']
     },
-    addressLine1: {
+    address: {
         type: String,
         required: [true, 'Address line 1 is required'],
         trim: true

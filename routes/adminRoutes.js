@@ -129,7 +129,7 @@ router.delete('/products/:id', protect, admin, async (req, res) => {
 
 router.get('/products', protect, admin, async (req, res) => {
     try {
-        const pageSize = 9;
+        const pageSize = 12;
         const page = Number(req.query.page) || 1;
         const keyword = req.query.keyword
             ? {name: {$regex: req.query.keyword, $options: 'i'}}
@@ -155,7 +155,7 @@ router.get('/products', protect, admin, async (req, res) => {
 
 router.get('/products/:id', protect, admin, async (req, res) => {
     try {
-        const pageSize = 9;
+        const pageSize = 12;
         const page = Number(req.query.page) || 1;
         const keyword = req.query.keyword
             ? {name: {$regex: req.query.keyword, $options: 'i'}}
