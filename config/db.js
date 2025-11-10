@@ -7,7 +7,9 @@ const connectDB = async () => {
     if (isConnected) return;
 
     try {
-        const conn = await mongoose.connect(MONGODB_URI);
+        const conn = await mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 10000
+        });
         isConnected = conn.connections[0].readyState;
         console.log("✅ MongoDB connected");
     } catch (err) {
